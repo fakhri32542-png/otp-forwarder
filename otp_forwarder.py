@@ -4,7 +4,10 @@ import time
 import requests
 from bs4 import BeautifulSoup
 from requests.adapters import HTTPAdapter
-from urllib3.util import Retry
+try:
+    from urllib3.util import Retry
+except ImportError:
+    from urllib3.util.retry import Retry
 
 # ==============================================================================
 # CONFIGURATION
@@ -12,18 +15,21 @@ from urllib3.util import Retry
 API_URL = "http://54.38.176.48/ints/agent/SMSTestPanel"
 USERNAME = "Fakhar325"
 PASSWORD = "Fakhar325"
-BOT_TOKEN = "YOUR_NEW_BOT_TOKEN"  # <-- Yahan apna naya Telegram Bot Token lagayein
+BOT_TOKEN = "8705044326:AAG4HZjHJ0JThaMc0BCkqFJ1yakyus_JraQ"  # Integrated your token
 CHAT_ID = "-1003824926404"
 CHECK_INTERVAL = 10
 
-# Server ko real user browser mimic karne ke liye detailed unique headers
+# Active cookie injected directly into persistent headers
+SESSION_COOKIE = "c2968f7f9c1f60162e478310d0dc5318"
+
 HEADERS = {
     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
     "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8",
     "Accept-Language": "en-US,en;q=0.9",
     "Referer": "http://54.38.176.48/ints/agent/SMSTestPanel",
     "Origin": "http://54.38.176.48",
-    "Connection": "keep-alive"
+    "Connection": "keep-alive",
+    "Cookie": f"PHPSESSID={SESSION_COOKIE}"
 }
 
 # ==============================================================================
@@ -39,33 +45,30 @@ def send_telegram(message):
         print(f"[-] Telegram Delivery Error: {e}")
 
 # ==============================================================================
-# CAPTCHA EXTRACTION & MATH ENGINE
+# BACKUP CAPTCHA SOLVER (Fallback Mode)
 # ==============================================================================
 def solve_captcha(soup_object):
     try:
         page_text = soup_object.get_text()
-        # Pure document structure se math calculations (e.g., 5 + 3) dhoondna
         match = re.search(r'(\d+)\s*\+\s*(\d+)', page_text)
-        
         if match:
             num1 = int(match.group(1))
             num2 = int(match.group(2))
             result = num1 + num2
-            print(f"[+] Captcha Found & Solved: {num1} + {num2} = {result}")
+            print(f"[+] Backup Captcha Solved: {num1} + {num2} = {result}")
             return str(result)
     except Exception as e:
-        print(f"[-] Captcha Solving Matrix Error: {e}")
+        print(f"[-] Captcha Solving Error: {e}")
     return None
 
 # ==============================================================================
-# RESILIENT HTTP CONNECTION BUILDER (SERVER CONNECTION DROP PROTECTION)
+# RESILIENT HTTP CONNECTION BUILDER
 # ==============================================================================
 def build_bulletproof_session():
-    """Server disconnects ya aborts se bachnay ke liye network pool adapter config."""
     session = requests.Session()
     retry_strategy = Retry(
-        total=5,  # Network break hone par 5 bar auto-retry karega
-        backoff_factor=2,  # Har retry ke darmiyan wait double hoga (2s, 4s, 8s...)
+        total=5,  
+        backoff_factor=2,  
         status_forcelist=[429, 500, 502, 503, 504],
         raise_on_status=False
     )
@@ -78,73 +81,111 @@ def build_bulletproof_session():
 # MAIN SYSTEM WORKER
 # ==============================================================================
 def main():
-    print("[+] HIGH-PERFORMANCE SMS SERVICE RUNNING ON RAILWAY")
+    print("[+] SMS SERVICE PRODUCTION ENGINE LOGGED ON")
     last_sms_snapshot = ""
+    use_login_fallback = False
     
     while True:
         session = None
         try:
             session = build_bulletproof_session()
-            print("\n[*] Initializing target connection handshake...")
             
-            # Step 1: Open Target Page
-            response = session.get(API_URL, headers=HEADERS, timeout=20)
-            soup = BeautifulSoup(response.text, "html.parser")
-            
-            captcha_val = solve_captcha(soup)
-            if not captcha_val:
-                print("[-] Target dashboard did not provide captcha context. Retrying loop...")
-                time.sleep(10)
-                continue
-                
-            payload = {
-                "username": USERNAME,
-                "password": PASSWORD,
-                "capt": captcha_val
-            }
-            
-            # Step 2: Perform Authenticated Sign-In
-            print("[*] Forwarding authentication tokens and captcha matrix...")
-            login_response = session.post(API_URL, headers=HEADERS, data=payload, timeout=20)
-            
-            if "Sign In" in login_response.text or login_response.status_code != 200:
-                print("[-] Server rejected credentials or captcha timed out.")
-                time.sleep(15)
-                continue
-                
-            print("[+] Authentication verified. Monitoring data streams...")
-            
-            # Step 3: Stream Tracking Loop (Single Session Execution Pool)
-            for loop_counter in range(50):
+            # Primary Route: Direct Bypass via PHPSESSID Cookie
+            if not use_login_fallback:
+                print("\n[*] Initializing direct cookie channel handshake...")
                 dashboard_response = session.get(API_URL, headers=HEADERS, timeout=20)
                 
-                # Check if session auto-dropped
-                if "Sign In" in dashboard_response.text:
-                    print("[!] Container token expired. Requesting re-auth configuration...")
-                    break
+                if "Sign In" not in dashboard_response.text:
+                    print("[+] Cookie authentication verified successfully.")
                     
-                dash_soup = BeautifulSoup(dashboard_response.text, "html.parser")
-                current_text_layer = dash_soup.get_text("\n").strip()
-                
-                if len(current_text_layer) > 50:
-                    if current_text_layer != last_sms_snapshot:
-                        print("[+] Data mutation detected! Transmitting to telegram...")
+                    for loop_counter in range(100):
+                        response = session.get(API_URL, headers=HEADERS, timeout=20)
                         
-                        formatted_message = f"📩 NEW SMS RECEIVED (STABLE PRODUCTION ENGINE)\n\n{current_text_layer[:3500]}"
-                        send_telegram(formatted_message)
-                        last_sms_snapshot = current_text_layer
-                    else:
-                        print(f"[.] Sync: OK | State: {loop_counter+1}/50 | Pipeline stable.")
+                        if "Sign In" in response.text:
+                            print("[!] Cookie context dropped natively. Shifting to backup plan...")
+                            use_login_fallback = True
+                            break
+                            
+                        dash_soup = BeautifulSoup(response.text, "html.parser")
+                        current_text_layer = dash_soup.get_text("\n").strip()
+                        
+                        if len(current_text_layer) > 50:
+                            if current_text_layer != last_sms_snapshot:
+                                print("[+] State mutation discovered. Transmitting logs...")
+                                formatted_message = f"📩 NEW SMS RECEIVED (STABLE PRODUCTION)\n\n{current_text_layer[:3500]}"
+                                send_telegram(formatted_message)
+                                last_sms_snapshot = current_text_layer
+                            else:
+                                print(f"[.] Sync Status: OK | Stream Count: {loop_counter+1}/100 | Sockets Stable.")
+                        else:
+                            print("[-] Error: Buffer string under min threshold.")
+                            
+                        time.sleep(CHECK_INTERVAL)
+                    continue
                 else:
-                    print("[-] Data packet truncated or interface layout unrecognizable.")
+                    print("[-] Current Cookie stream is stale. Launching fallback login routing...")
+                    use_login_fallback = True
+
+            # Plan B: Credential Handshake + Captcha Matching Engine
+            if use_login_fallback:
+                print("[*] Launching standard forms parsing module...")
+                clean_headers = HEADERS.copy()
+                if "Cookie" in clean_headers:
+                    del clean_headers["Cookie"]
                     
-                time.sleep(CHECK_INTERVAL)
+                response = session.get(API_URL, headers=clean_headers, timeout=20)
+                soup = BeautifulSoup(response.text, "html.parser")
                 
+                captcha_val = solve_captcha(soup)
+                if not captcha_val:
+                    print("[-] Captcha framework response error. Recycling main branch...")
+                    time.sleep(10)
+                    continue
+                    
+                payload = {
+                    "username": USERNAME,
+                    "password": PASSWORD,
+                    "capt": captcha_val
+                }
+                
+                login_response = session.post(API_URL, headers=clean_headers, data=payload, timeout=20)
+                
+                if "Sign In" in login_response.text or login_response.status_code != 200:
+                    print("[-] Fallback routine rejected by server. Sleeping thread...")
+                    time.sleep(15)
+                    continue
+                    
+                print("[+] Fallback Login Verified. Monitoring active dashboard data stream...")
+                
+                for loop_counter in range(40):
+                    dashboard_response = session.get(API_URL, headers=clean_headers, timeout=20)
+                    
+                    if "Sign In" in dashboard_response.text:
+                        print("[!] Fallback identity token expired. Resetting node...")
+                        break
+                        
+                    dash_soup = BeautifulSoup(dashboard_response.text, "html.parser")
+                    current_text_layer = dash_soup.get_text("\n").strip()
+                    
+                    if len(current_text_layer) > 50:
+                        if current_text_layer != last_sms_snapshot:
+                            print("[+] Update captured via fallback layer! Transmitting...")
+                            formatted_message = f"📩 NEW SMS RECEIVED (FALLBACK BACKUP)\n\n{current_text_layer[:3500]}"
+                            send_telegram(formatted_message)
+                            last_sms_snapshot = current_text_layer
+                        else:
+                            print(f"[.] Fallback Sync: OK | Count: {loop_counter+1}/40")
+                    else:
+                        print("[-] Content frame data empty.")
+                        
+                    time.sleep(CHECK_INTERVAL)
+                
+                use_login_fallback = False
+
         except Exception as global_error:
-            print(f"[!!] Network pipeline error intercepted: {global_error}")
-            print("[*] Recycling network sockets for cold-restart...")
+            print(f"[!!] Production runtime loop exception caught: {global_error}")
             time.sleep(10)
 
 if __name__ == "__main__":
     main()
-    
+            
