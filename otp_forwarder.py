@@ -3,11 +3,8 @@ import re
 import time
 import requests
 from bs4 import BeautifulSoup
-from selenium import webdriver
-from selenium.webdriver.chrome.options import Options
-from selenium.webdriver.common.by import By
-from selenium.webdriver.support.ui import WebDriverWait
-from selenium.webdriver.support import expected_conditions as EC
+from requests.adapters import HTTPAdapter
+from urllib3.util import Retry
 
 # ==============================================================================
 # CONFIGURATION
@@ -15,10 +12,19 @@ from selenium.webdriver.support import expected_conditions as EC
 API_URL = "http://54.38.176.48/ints/agent/SMSTestPanel"
 USERNAME = "Fakhar325"
 PASSWORD = "Fakhar325"
-BOT_TOKEN = "YOUR_NEW_BOT_TOKEN"  # <-- Apna sahi Telegram Bot Token yahan dalein
+BOT_TOKEN = "YOUR_NEW_BOT_TOKEN"  # <-- Yahan apna naya Telegram Bot Token lagayein
 CHAT_ID = "-1003824926404"
-CHECK_INTERVAL = 10  
-ITERATIONS_BEFORE_RECYCLE = 30  
+CHECK_INTERVAL = 10
+
+# Server ko real user browser mimic karne ke liye detailed unique headers
+HEADERS = {
+    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8",
+    "Accept-Language": "en-US,en;q=0.9",
+    "Referer": "http://54.38.176.48/ints/agent/SMSTestPanel",
+    "Origin": "http://54.38.176.48",
+    "Connection": "keep-alive"
+}
 
 # ==============================================================================
 # TELEGRAM ALERTS ENGINE
@@ -28,154 +34,115 @@ def send_telegram(message):
         telegram_url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage"
         payload = {"chat_id": CHAT_ID, "text": message}
         response = requests.post(telegram_url, data=payload, timeout=15)
-        print(f"[Telegram Logger]: Alert Status -> {response.status_code}")
+        print(f"[Telegram Alert]: Status Code -> {response.status_code}")
     except Exception as e:
-        print(f"[-] Telegram Gateway Error: {e}")
+        print(f"[-] Telegram Delivery Error: {e}")
 
 # ==============================================================================
-# CAPTCHA MATHEMATICAL SOLVER
+# CAPTCHA EXTRACTION & MATH ENGINE
 # ==============================================================================
-def solve_captcha_from_text(text):
+def solve_captcha(soup_object):
     try:
-        match = re.search(r'(\d+)\s*\+\s*(\d+)', text)
+        page_text = soup_object.get_text()
+        # Pure document structure se math calculations (e.g., 5 + 3) dhoondna
+        match = re.search(r'(\d+)\s*\+\s*(\d+)', page_text)
+        
         if match:
             num1 = int(match.group(1))
             num2 = int(match.group(2))
             result = num1 + num2
-            print(f"[+] Captcha Solved: {num1} + {num2} = {result}")
+            print(f"[+] Captcha Found & Solved: {num1} + {num2} = {result}")
             return str(result)
     except Exception as e:
-        print(f"[-] Captcha Engine Failure: {e}")
+        print(f"[-] Captcha Solving Matrix Error: {e}")
     return None
 
 # ==============================================================================
-# RAILWAY NIXPACKS PROPER CHROME SETTINGS
+# RESILIENT HTTP CONNECTION BUILDER (SERVER CONNECTION DROP PROTECTION)
 # ==============================================================================
-def get_optimized_browser():
-    chrome_options = Options()
-    
-    # DevToolsActivePort aur Crash errors ko end karne ke liye solid arguments
-    chrome_options.add_argument("--headless=new") 
-    chrome_options.add_argument("--no-sandbox")
-    chrome_options.add_argument("--disable-dev-shm-usage")
-    chrome_options.add_argument("--disable-gpu")
-    chrome_options.add_argument("--remote-debugging-port=9222")
-    chrome_options.add_argument("--disable-extensions")
-    chrome_options.add_argument("--window-size=1920,1080")
-    chrome_options.add_argument("user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36")
-    
-    # Detection bypassing settings
-    chrome_options.add_argument("--disable-blink-features=AutomationControlled")
-    chrome_options.add_experimental_option("excludeSwitches", ["enable-automation"])
-    chrome_options.add_experimental_option('useAutomationExtension', False)
-    
-    # Nixpacks ke custom binary locations dhoondna taake DevTools crash na ho
-    common_binary_paths = [
-        "/usr/bin/google-chrome-stable",
-        "/usr/bin/google-chrome",
-        "/usr/bin/chromium-browser",
-        "/usr/bin/chromium"
-    ]
-    
-    for path in common_binary_paths:
-        if os.path.exists(path):
-            chrome_options.binary_location = path
-            print(f"[+] Setting Chrome Binary Location Path to: {path}")
-            break
-
-    print("[*] Launching Chromium Core Interface inside container...")
-    driver = webdriver.Chrome(options=chrome_options)
-    
-    driver.execute_cdp_cmd("Page.addScriptToEvaluateOnNewDocument", {
-        "source": "Object.defineProperty(navigator, 'webdriver', {get: () => undefined})"
-    })
-    return driver
+def build_bulletproof_session():
+    """Server disconnects ya aborts se bachnay ke liye network pool adapter config."""
+    session = requests.Session()
+    retry_strategy = Retry(
+        total=5,  # Network break hone par 5 bar auto-retry karega
+        backoff_factor=2,  # Har retry ke darmiyan wait double hoga (2s, 4s, 8s...)
+        status_forcelist=[429, 500, 502, 503, 504],
+        raise_on_status=False
+    )
+    adapter = HTTPAdapter(max_retries=retry_strategy)
+    session.mount("http://", adapter)
+    session.mount("https://", adapter)
+    return session
 
 # ==============================================================================
-# MAIN CORE LOOP
+# MAIN SYSTEM WORKER
 # ==============================================================================
 def main():
-    print("[+] SMS AUTOMATION MULTI-LAYER GUARD STARTED")
+    print("[+] HIGH-PERFORMANCE SMS SERVICE RUNNING ON RAILWAY")
     last_sms_snapshot = ""
     
     while True:
-        driver = None
+        session = None
         try:
-            driver = get_optimized_browser()
-            wait = WebDriverWait(driver, 25) 
-
-            print(f"[*] Accessing panel node: {API_URL}")
-            driver.get(API_URL)
-            time.sleep(4) 
-
-            # Handle Identity Challenge
-            page_source = driver.page_source
-            if "username" in page_source.lower() or "Sign In" in page_source:
-                print("[*] Authentication prompt active.")
+            session = build_bulletproof_session()
+            print("\n[*] Initializing target connection handshake...")
+            
+            # Step 1: Open Target Page
+            response = session.get(API_URL, headers=HEADERS, timeout=20)
+            soup = BeautifulSoup(response.text, "html.parser")
+            
+            captcha_val = solve_captcha(soup)
+            if not captcha_val:
+                print("[-] Target dashboard did not provide captcha context. Retrying loop...")
+                time.sleep(10)
+                continue
                 
-                soup = BeautifulSoup(page_source, "html.parser")
-                captcha_solution = solve_captcha_from_text(soup.get_text())
-
-                if not captcha_solution:
-                    print("[-] Captcha capture failed. Restarting stream layout...")
-                    driver.quit()
-                    time.sleep(5)
-                    continue
-
-                user_input = wait.until(EC.presence_of_element_located((By.NAME, "username")))
-                pass_input = driver.find_element(By.NAME, "password")
-                capt_input = driver.find_element(By.NAME, "capt")
+            payload = {
+                "username": USERNAME,
+                "password": PASSWORD,
+                "capt": captcha_val
+            }
+            
+            # Step 2: Perform Authenticated Sign-In
+            print("[*] Forwarding authentication tokens and captcha matrix...")
+            login_response = session.post(API_URL, headers=HEADERS, data=payload, timeout=20)
+            
+            if "Sign In" in login_response.text or login_response.status_code != 200:
+                print("[-] Server rejected credentials or captcha timed out.")
+                time.sleep(15)
+                continue
                 
-                user_input.clear()
-                user_input.send_keys(USERNAME)
-                pass_input.clear()
-                pass_input.send_keys(PASSWORD)
-                capt_input.clear()
-                capt_input.send_keys(captcha_solution)
-
-                print("[*] Dispatching signed auth credentials...")
-                capt_input.submit()
-                time.sleep(7)  
-
-            # Main tracking loop
-            for loop_count in range(ITERATIONS_BEFORE_RECYCLE):
-                current_dom_state = driver.page_source
+            print("[+] Authentication verified. Monitoring data streams...")
+            
+            # Step 3: Stream Tracking Loop (Single Session Execution Pool)
+            for loop_counter in range(50):
+                dashboard_response = session.get(API_URL, headers=HEADERS, timeout=20)
                 
-                if "username" in current_dom_state.lower() and "Sign In" in current_dom_state:
-                    print("[!] Session verification dropped. Breaking track loops...")
+                # Check if session auto-dropped
+                if "Sign In" in dashboard_response.text:
+                    print("[!] Container token expired. Requesting re-auth configuration...")
                     break
-
-                dash_soup = BeautifulSoup(current_dom_state, "html.parser")
-                clean_payload_text = dash_soup.get_text("\n").strip()
-
-                if len(clean_payload_text) > 50:
-                    if clean_payload_text != last_sms_snapshot:
-                        print("[+] Data modification captured! Sending update to telegram...")
+                    
+                dash_soup = BeautifulSoup(dashboard_response.text, "html.parser")
+                current_text_layer = dash_soup.get_text("\n").strip()
+                
+                if len(current_text_layer) > 50:
+                    if current_text_layer != last_sms_snapshot:
+                        print("[+] Data mutation detected! Transmitting to telegram...")
                         
-                        formatted_alert = f"📩 NEW SMS RECEIVED (STABLE PRODUCTION)\n\n{clean_payload_text[:3500]}"
-                        send_telegram(formatted_alert)
-                        
-                        last_sms_snapshot = clean_payload_text
+                        formatted_message = f"📩 NEW SMS RECEIVED (STABLE PRODUCTION ENGINE)\n\n{current_text_layer[:3500]}"
+                        send_telegram(formatted_message)
+                        last_sms_snapshot = current_text_layer
                     else:
-                        print(f"[.] Sync: OK | State: {loop_count+1}/{ITERATIONS_BEFORE_RECYCLE} | Data stream un-mutated.")
+                        print(f"[.] Sync: OK | State: {loop_counter+1}/50 | Pipeline stable.")
                 else:
-                    print("[-] Error: Stream page unreadable or data layout truncated.")
-
+                    print("[-] Data packet truncated or interface layout unrecognizable.")
+                    
                 time.sleep(CHECK_INTERVAL)
-                driver.refresh()
-                time.sleep(3)
-
-            print("[*] Shutting down subprocess context safely to clear server RAM...")
-            driver.quit()
-
-        except Exception as global_runtime_error:
-            print(f"[!!] Core Loop Exception caught: {global_runtime_error}")
-            if driver:
-                try:
-                    driver.quit()
-                except:
-                    pass
-            print("[*] Reviving application container state in 10 seconds...")
+                
+        except Exception as global_error:
+            print(f"[!!] Network pipeline error intercepted: {global_error}")
+            print("[*] Recycling network sockets for cold-restart...")
             time.sleep(10)
 
 if __name__ == "__main__":
