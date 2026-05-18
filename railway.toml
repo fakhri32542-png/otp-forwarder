@@ -1,11 +1,10 @@
 [build]
-builder = "RAILPACK"
+builder = "NIXPACKS"
 
 [deploy]
 startCommand = "python otp_forwarder.py"
 restartPolicyType = "ON_FAILURE"
 restartPolicyMaxRetries = 10
 
-# Yeh settings Railway par Google Chrome install karne ke liye zaroori hain
-[build.nixpacks]
+[providers.nixpacks]
 aptPackages = ["google-chrome-stable", "chromium-chromedriver"]
