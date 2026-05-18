@@ -6,5 +6,6 @@ startCommand = "python otp_forwarder.py"
 restartPolicyType = "ON_FAILURE"
 restartPolicyMaxRetries = 10
 
-[providers.nixpacks]
-aptPackages = ["google-chrome-stable", "chromium-chromedriver"]
+# Yeh section custom Linux environments mein Chrome aur Chromedriver auto-inject karega
+[build.nixpacks]
+pkgs = ["google-chrome", "chromium"]
