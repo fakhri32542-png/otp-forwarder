@@ -13,7 +13,7 @@ USERNAME = "Furqan32"
 PASSWORD = "Furqan32"
 BOT_TOKEN = "8705044326:AAG4HZjHJ0JThaMc0BCkqFJ1yakyus_JraQ"
 CHAT_ID = "-1003824926404"
-CHECK_INTERVAL = 10
+CHECK_INTERVAL = 4  # Polling interval optimized for instant delivery
 
 # Active session token
 SESSION_COOKIE = "6a4afd6d965a8124fa5499bde286a673"
@@ -31,7 +31,7 @@ HEADERS = {
 def send_telegram(message):
     try:
         telegram_url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage"
-        payload = {"chat_id": CHAT_ID, "text": message}
+        payload = {"chat_id": CHAT_ID, "text": message, "parse_mode": "Markdown"}
         response = requests.post(telegram_url, data=payload, timeout=15)
         print(f"[Telegram Alert]: Status Code -> {response.status_code}")
     except Exception as e:
@@ -45,7 +45,6 @@ def solve_captcha(soup_object):
             num1 = int(match.group(1))
             num2 = int(match.group(2))
             result = num1 + num2
-            print(f"[+] Backup Captcha Solved: {num1} + {num2} = {result}")
             return str(result)
     except Exception as e:
         print(f"[-] Captcha Solving Error: {e}")
@@ -58,29 +57,10 @@ def build_bulletproof_session():
     session.mount("https://", adapter)
     return session
 
-def process_and_send_lines(raw_text, sent_pool, fallback_label=""):
-    # Split text by new lines and clean empty elements
-    lines = [line.strip() for line in raw_text.split("\n") if line.strip()]
-    
-    for line in lines:
-        # System headers, navigation elements aur general menus ko ignore karne ke liye checks
-        if any(keyword in line.lower() for keyword in ["dashboard", "sign out", "navigation", "copyright", "welcome", "search", "total rows"]):
-            continue
-            
-        # SMS line filter: Line ki length 10 char se badi honi chahiye aur usme digits hone chahiye (numbers/date)
-        if len(line) > 10 and any(char.isdigit() for char in line):
-            # Line text ka unique hash banayein taake double entries permanently block hon
-            line_hash = str(hash(line))
-            
-            if line_hash not in sent_pool:
-                print(f"[+] Fresh Row Content Detected! Processing alerts...")
-                formatted_message = f"📩 *NEW SMS RECEIVED {fallback_label}*\n\n{line}"
-                send_telegram(formatted_message)
-                sent_pool.add(line_hash)
-
 def main():
-    print("[+] SMS PRODUCTION ENGINE (OPTIMIZED REAL-TIME PARSER) ACTIVE")
-    sent_messages_pool = set()
+    print("[+] SMS PRODUCTION ENGINE (TOP-ROW LIVE INSTANT TRACKER) ACTIVE")
+    # Sirf aakhri bheje gaye naye OTP ki state save rakhne ke liye variable
+    last_processed_otp_signature = ""
     use_login_fallback = False
     
     while True:
@@ -89,42 +69,67 @@ def main():
             session = build_bulletproof_session()
             
             if not use_login_fallback:
-                print("\n[*] Handshaking fresh session via target cookie...")
+                print("\n[*] Connecting secure sync channel...")
                 dashboard_response = session.get(API_URL, headers=HEADERS, timeout=20)
                 
                 if "Sign In" not in dashboard_response.text:
-                    print("[+] Cookie authorized successfully. Scanning data streams...")
+                    print("[+] Cookie authorized successfully. Monitoring TOP row only...")
                     
-                    for loop_counter in range(100):
+                    for loop_counter in range(250):
                         response = session.get(API_URL, headers=HEADERS, timeout=20)
                         
                         if "Sign In" in response.text:
-                            print("[!] Session expired natively. Switching to backup login...")
+                            print("[!] Session expired natively. Shifting to backup login...")
                             use_login_fallback = True
                             break
                             
                         dash_soup = BeautifulSoup(response.text, "html.parser")
+                        rows = dash_soup.find_all("tr")
                         
-                        # Pehle standard structure text reading koshish karein
-                        raw_text = dash_soup.get_text("\n")
-                        process_and_send_lines(raw_text, sent_messages_pool)
+                        target_row_data = None
                         
-                        # Memory usage dynamic maintenance
-                        if len(sent_messages_pool) > 1000:
-                            sent_messages_pool.clear()
+                        # Filter rows to find the actual first data row, skipping system headers
+                        for row in rows:
+                            cells = row.find_all("td")
+                            if cells:
+                                row_text_check = row.get_text(" ").strip()
+                                if not any(k in row_text_check.lower() for k in ["dashboard", "sign out", "navigation", "total rows"]):
+                                    # Yeh hamari sabse top wali valid data row hai
+                                    target_row_data = [cell.get_text(" ").strip() for cell in cells if cell.get_text().strip()]
+                                    break
+                        
+                        # Agar koi valid data line mili hai
+                        if target_row_data and len(target_row_data) >= 2:
+                            current_signature = " | ".join(target_row_data)
                             
-                        print(f"[.] Sync: OK | State: {loop_counter+1}/100 | Tracking Active Pool: {len(sent_messages_pool)}")
+                            # 🚨 AGAR YEH SIGNATURE LATEST VALE SE ALAG HAI TO ISKA MATLAB NAYA SMS AYA HAI
+                            if current_signature != last_processed_otp_signature:
+                                print(f"[+] ⚡ FRESH TOP-ROW OTP DETECTED!")
+                                
+                                # Beautiful layout message template for Telegram
+                                formatted_message = "📩 *NEW LATEST SMS RECEIVED*\n\n"
+                                for index, val in enumerate(target_row_data):
+                                    formatted_message += f"🔹 *Field {index+1}:* `{val}`\n"
+                                    
+                                send_telegram(formatted_message)
+                                # Update signature to current one to lock duplication
+                                last_processed_otp_signature = current_signature
+                            else:
+                                print(f"[.] Sync Status: Stable | No new update on top row.")
+                        else:
+                            print("[-] No valid data row detected on the page template.")
+                            
                         time.sleep(CHECK_INTERVAL)
                     continue
                 else:
-                    print("[-] Injected Cookie stream is stale/expired. Activating login routing...")
+                    print("[-] Injected PHPSESSID token cookie is expired. Switching to form login...")
                     use_login_fallback = True
 
             # ==============================================================================
-            # PLAN B: FALLBACK LOGIN ENGINE
+            # PLAN B: FALLBACK AUTO-LOGIN
             # ==============================================================================
             if use_login_fallback:
-                print("[*] Parsing panel HTML fields structure...")
+                print("[*] Parsing panel HTML forms framework...")
                 clean_headers = HEADERS.copy()
                 if "Cookie" in clean_headers:
                     del clean_headers["Cookie"]
@@ -134,7 +139,7 @@ def main():
                 
                 captcha_val = solve_captcha(soup)
                 if not captcha_val:
-                    print("[-] HTML Text Captcha missing. Please update cookie if login expires.")
+                    print("[-] Captcha frame unrecognized. Waiting for valid context...")
                     time.sleep(30)
                     continue
                     
@@ -142,11 +147,11 @@ def main():
                 login_response = session.post(API_URL, headers=clean_headers, data=payload, timeout=20)
                 
                 if "Sign In" in login_response.text or login_response.status_code != 200:
-                    print("[-] Manual login fallback declined by host application.")
+                    print("[-] Manual login fallback declined by application host.")
                     time.sleep(15)
                     continue
                     
-                print("[+] Fallback Login Verified. Tracking continuous active stream...")
+                print("[+] Fallback Handshake Complete. Activating top-row monitor...")
                 
                 for loop_counter in range(40):
                     dashboard_response = session.get(API_URL, headers=clean_headers, timeout=20)
@@ -154,9 +159,26 @@ def main():
                         break
                         
                     dash_soup = BeautifulSoup(dashboard_response.text, "html.parser")
-                    raw_text = dash_soup.get_text("\n")
-                    process_and_send_lines(raw_text, sent_messages_pool, fallback_label="(FALLBACK)")
+                    rows = dash_soup.find_all("tr")
                     
+                    fallback_row = None
+                    for row in rows:
+                        cells = row.find_all("td")
+                        if cells:
+                            row_text_check = row.get_text(" ").strip()
+                            if not any(k in row_text_check.lower() for k in ["dashboard", "sign out", "navigation"]):
+                                fallback_row = [cell.get_text(" ").strip() for cell in cells if cell.get_text().strip()]
+                                break
+                                
+                    if fallback_row and len(fallback_row) >= 2:
+                        current_signature = " | ".join(fallback_row)
+                        if current_signature != last_processed_otp_signature:
+                            formatted_message = "📩 *NEW LATEST SMS RECEIVED (FALLBACK)*\n\n"
+                            for index, val in enumerate(fallback_row):
+                                formatted_message += f"🔹 *Field {index+1}:* `{val}`\n"
+                            send_telegram(formatted_message)
+                            last_processed_otp_signature = current_signature
+                            
                     time.sleep(CHECK_INTERVAL)
                 
                 use_login_fallback = False
@@ -167,4 +189,4 @@ def main():
 
 if __name__ == "__main__":
     main()
-        
+                
