@@ -4,10 +4,6 @@ import time
 import requests
 from bs4 import BeautifulSoup
 from requests.adapters import HTTPAdapter
-try:
-    from urllib3.util import Retry
-except ImportError:
-    from urllib3.util.retry import Retry
 
 # ==============================================================================
 # CONFIGURATION
@@ -15,11 +11,11 @@ except ImportError:
 API_URL = "http://54.38.176.48/ints/agent/SMSTestPanel"
 USERNAME = "Fakhar325"
 PASSWORD = "Fakhar325"
-BOT_TOKEN = "8705044326:AAG4HZjHJ0JThaMc0BCkqFJ1yakyus_JraQ"  # Integrated your token
+BOT_TOKEN = "8705044326:AAG4HZjHJ0JThaMc0BCkqFJ1yakyus_JraQ"  # Aapka active token
 CHAT_ID = "-1003824926404"
 CHECK_INTERVAL = 10
 
-# Active cookie injected directly into persistent headers
+# Active cookie for instant login bypass
 SESSION_COOKIE = "c2968f7f9c1f60162e478310d0dc5318"
 
 HEADERS = {
@@ -62,17 +58,12 @@ def solve_captcha(soup_object):
     return None
 
 # ==============================================================================
-# RESILIENT HTTP CONNECTION BUILDER
+# RESILIENT HTTP CONNECTION BUILDER (Fixed Without urllib3 Conflict)
 # ==============================================================================
 def build_bulletproof_session():
     session = requests.Session()
-    retry_strategy = Retry(
-        total=5,  
-        backoff_factor=2,  
-        status_forcelist=[429, 500, 502, 503, 504],
-        raise_on_status=False
-    )
-    adapter = HTTPAdapter(max_retries=retry_strategy)
+    # Built-in Requests max_retries implementation (Zero imports conflict)
+    adapter = HTTPAdapter(max_retries=5) 
     session.mount("http://", adapter)
     session.mount("https://", adapter)
     return session
@@ -188,4 +179,4 @@ def main():
 
 if __name__ == "__main__":
     main()
-            
+                        
