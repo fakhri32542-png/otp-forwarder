@@ -6,24 +6,24 @@ from bs4 import BeautifulSoup
 from requests.adapters import HTTPAdapter
 
 # ==============================================================================
-# CONFIGURATION
+# CONFIGURATION (UPDATED WITH NEW NEW TARGET NODE)
 # ==============================================================================
-API_URL = "http://54.38.176.48/ints/agent/SMSTestPanel"
-USERNAME = "Fakhar325"
-PASSWORD = "Fakhar325"
-BOT_TOKEN = "8705044326:AAG4HZjHJ0JThaMc0BCkqFJ1yakyus_JraQ"  # Aapka active token
+API_URL = "http://139.99.68.231/ints/agent/SMSCDRStats"
+USERNAME = "Furqan32"
+PASSWORD = "Furqan32" # Agar password alag hai to yahan exact string replace kar sakte hain
+BOT_TOKEN = "8705044326:AAG4HZjHJ0JThaMc0BCkqFJ1yakyus_JraQ"
 CHAT_ID = "-1003824926404"
 CHECK_INTERVAL = 10
 
-# Active cookie for instant login bypass
-SESSION_COOKIE = "c2968f7f9c1f60162e478310d0dc5318"
+# 🔴 APNI FRESH ACTIVE COOKIE INTEGRATED
+SESSION_COOKIE = "6a4afd6d965a8124fa5499bde286a673"
 
 HEADERS = {
     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
     "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8",
     "Accept-Language": "en-US,en;q=0.9",
-    "Referer": "http://54.38.176.48/ints/agent/SMSTestPanel",
-    "Origin": "http://54.38.176.48",
+    "Referer": "http://139.99.68.231/ints/agent/SMSCDRStats",
+    "Origin": "http://139.99.68.231",
     "Connection": "keep-alive",
     "Cookie": f"PHPSESSID={SESSION_COOKIE}"
 }
@@ -53,17 +53,26 @@ def solve_captcha(soup_object):
             result = num1 + num2
             print(f"[+] Backup Captcha Solved: {num1} + {num2} = {result}")
             return str(result)
+            
+        inputs = soup_object.find_all("input")
+        for i in inputs:
+            placeholder = i.get("placeholder", "")
+            if "+" in placeholder:
+                match = re.search(r'(\d+)\s*\+\s*(\d+)', placeholder)
+                if match:
+                    result = int(match.group(1)) + int(match.group(2))
+                    print(f"[+] Captcha Solved From Placeholder: {result}")
+                    return str(result)
     except Exception as e:
         print(f"[-] Captcha Solving Error: {e}")
     return None
 
 # ==============================================================================
-# RESILIENT HTTP CONNECTION BUILDER (Fixed Without urllib3 Conflict)
+# RESILIENT HTTP CONNECTION BUILDER
 # ==============================================================================
 def build_bulletproof_session():
     session = requests.Session()
-    # Built-in Requests max_retries implementation (Zero imports conflict)
-    adapter = HTTPAdapter(max_retries=5) 
+    adapter = HTTPAdapter(max_retries=5)
     session.mount("http://", adapter)
     session.mount("https://", adapter)
     return session
@@ -72,7 +81,7 @@ def build_bulletproof_session():
 # MAIN SYSTEM WORKER
 # ==============================================================================
 def main():
-    print("[+] SMS SERVICE PRODUCTION ENGINE LOGGED ON")
+    print("[+] SMS SERVICE RUNNING ON NEW NODE PIPELINE")
     last_sms_snapshot = ""
     use_login_fallback = False
     
@@ -81,19 +90,19 @@ def main():
         try:
             session = build_bulletproof_session()
             
-            # Primary Route: Direct Bypass via PHPSESSID Cookie
+            # Route 1: Cookie Direct Access Mode
             if not use_login_fallback:
-                print("\n[*] Initializing direct cookie channel handshake...")
+                print("\n[*] Handshaking fresh session via target cookie...")
                 dashboard_response = session.get(API_URL, headers=HEADERS, timeout=20)
                 
                 if "Sign In" not in dashboard_response.text:
-                    print("[+] Cookie authentication verified successfully.")
+                    print("[+] Cookie authorized successfully. Streaming data logs...")
                     
                     for loop_counter in range(100):
                         response = session.get(API_URL, headers=HEADERS, timeout=20)
                         
                         if "Sign In" in response.text:
-                            print("[!] Cookie context dropped natively. Shifting to backup plan...")
+                            print("[!] Cookie context dropped on host. Moving to login matrix...")
                             use_login_fallback = True
                             break
                             
@@ -102,24 +111,24 @@ def main():
                         
                         if len(current_text_layer) > 50:
                             if current_text_layer != last_sms_snapshot:
-                                print("[+] State mutation discovered. Transmitting logs...")
+                                print("[+] Data stream update found! Transmitting to telegram...")
                                 formatted_message = f"📩 NEW SMS RECEIVED (STABLE PRODUCTION)\n\n{current_text_layer[:3500]}"
                                 send_telegram(formatted_message)
                                 last_sms_snapshot = current_text_layer
                             else:
-                                print(f"[.] Sync Status: OK | Stream Count: {loop_counter+1}/100 | Sockets Stable.")
+                                print(f"[.] Sync Status: OK | Count: {loop_counter+1}/100 | Node Active.")
                         else:
-                            print("[-] Error: Buffer string under min threshold.")
+                            print("[-] Warning: Buffer string length under threshold.")
                             
                         time.sleep(CHECK_INTERVAL)
                     continue
                 else:
-                    print("[-] Current Cookie stream is stale. Launching fallback login routing...")
+                    print("[-] Injected Cookie stream is stale/expired. Activating login routing...")
                     use_login_fallback = True
 
-            # Plan B: Credential Handshake + Captcha Matching Engine
+            # Route 2: Fallback Login Protocol
             if use_login_fallback:
-                print("[*] Launching standard forms parsing module...")
+                print("[*] Parsing panel HTML fields structure...")
                 clean_headers = HEADERS.copy()
                 if "Cookie" in clean_headers:
                     del clean_headers["Cookie"]
@@ -129,8 +138,9 @@ def main():
                 
                 captcha_val = solve_captcha(soup)
                 if not captcha_val:
-                    print("[-] Captcha framework response error. Recycling main branch...")
-                    time.sleep(10)
+                    print("[-] HTML Text Captcha missing. Node using dynamic Image context.")
+                    print("[*] Please update 'SESSION_COOKIE' parameter with a fresh string from your active browser.")
+                    time.sleep(30)
                     continue
                     
                 payload = {
@@ -142,17 +152,15 @@ def main():
                 login_response = session.post(API_URL, headers=clean_headers, data=payload, timeout=20)
                 
                 if "Sign In" in login_response.text or login_response.status_code != 200:
-                    print("[-] Fallback routine rejected by server. Sleeping thread...")
+                    print("[-] Manual login fallback declined by host application.")
                     time.sleep(15)
                     continue
                     
-                print("[+] Fallback Login Verified. Monitoring active dashboard data stream...")
+                print("[+] Fallback Login Verified. Tracking continuous active stream...")
                 
                 for loop_counter in range(40):
                     dashboard_response = session.get(API_URL, headers=clean_headers, timeout=20)
-                    
                     if "Sign In" in dashboard_response.text:
-                        print("[!] Fallback identity token expired. Resetting node...")
                         break
                         
                     dash_soup = BeautifulSoup(dashboard_response.text, "html.parser")
@@ -160,23 +168,17 @@ def main():
                     
                     if len(current_text_layer) > 50:
                         if current_text_layer != last_sms_snapshot:
-                            print("[+] Update captured via fallback layer! Transmitting...")
-                            formatted_message = f"📩 NEW SMS RECEIVED (FALLBACK BACKUP)\n\n{current_text_layer[:3500]}"
+                            formatted_message = f"📩 NEW SMS RECEIVED (FALLBACK MODE)\n\n{current_text_layer[:3500]}"
                             send_telegram(formatted_message)
                             last_sms_snapshot = current_text_layer
-                        else:
-                            print(f"[.] Fallback Sync: OK | Count: {loop_counter+1}/40")
-                    else:
-                        print("[-] Content frame data empty.")
-                        
                     time.sleep(CHECK_INTERVAL)
                 
                 use_login_fallback = False
 
         except Exception as global_error:
-            print(f"[!!] Production runtime loop exception caught: {global_error}")
+            print(f"[!!] Production runtime loop caught error: {global_error}")
             time.sleep(10)
 
 if __name__ == "__main__":
     main()
-                        
+    
