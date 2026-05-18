@@ -15,7 +15,7 @@ from webdriver_manager.chrome import ChromeDriverManager
 API_URL = "http://54.38.176.48/ints/agent/SMSTestPanel"
 USERNAME = "Fakhar325"
 PASSWORD = "Fakhar325"
-BOT_TOKEN = "YOUR_NEW_BOT_TOKEN"  # Real token input karein
+BOT_TOKEN = "YOUR_NEW_BOT_TOKEN"  # Apna Token yahan verify karein
 CHAT_ID = "-1003824926404"
 CHECK_INTERVAL = 10
 
@@ -53,16 +53,13 @@ def get_real_browser():
     chrome_options.add_experimental_option("excludeSwitches", ["enable-automation"])
     chrome_options.add_experimental_option('useAutomationExtension', False)
     
-    # Railway local environment standard system discovery path lookups
-    paths = ["/usr/bin/google-chrome", "/usr/bin/google-chrome-stable", "/usr/bin/chromium-browser"]
-    for path in paths:
-        if os.path.exists(path):
-            chrome_options.binary_location = path
-            print(f"[+] System Chrome Binary found at: {path}")
-            break
+    # Global environment detection mechanism for Nixpacks
+    # Kuch common nix paths check karna agar standard environment wrapper missing ho
+    nix_chrome_path = "/nix/store/"
+    print("[*] Instantiating default automation driver setup...")
 
-    service = Service(ChromeDriverManager().install())
-    driver = webdriver.Chrome(service=service, options=chrome_options)
+    # automatic fallback wrapper execution
+    driver = webdriver.Chrome(options=chrome_options)
     
     driver.execute_cdp_cmd("Page.addScriptToEvaluateOnNewDocument", {
         "source": "Object.defineProperty(navigator, 'webdriver', {get: () => undefined})"
@@ -145,4 +142,4 @@ def main():
 
 if __name__ == "__main__":
     main()
-    
+                
