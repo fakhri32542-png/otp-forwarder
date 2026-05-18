@@ -58,9 +58,28 @@ def build_bulletproof_session():
     session.mount("https://", adapter)
     return session
 
+def process_and_send_lines(raw_text, sent_pool, fallback_label=""):
+    # Split text by new lines and clean empty elements
+    lines = [line.strip() for line in raw_text.split("\n") if line.strip()]
+    
+    for line in lines:
+        # System headers, navigation elements aur general menus ko ignore karne ke liye checks
+        if any(keyword in line.lower() for keyword in ["dashboard", "sign out", "navigation", "copyright", "welcome", "search", "total rows"]):
+            continue
+            
+        # SMS line filter: Line ki length 10 char se badi honi chahiye aur usme digits hone chahiye (numbers/date)
+        if len(line) > 10 and any(char.isdigit() for char in line):
+            # Line text ka unique hash banayein taake double entries permanently block hon
+            line_hash = str(hash(line))
+            
+            if line_hash not in sent_pool:
+                print(f"[+] Fresh Row Content Detected! Processing alerts...")
+                formatted_message = f"📩 *NEW SMS RECEIVED {fallback_label}*\n\n{line}"
+                send_telegram(formatted_message)
+                sent_pool.add(line_hash)
+
 def main():
-    print("[+] SMS PRODUCTION ENGINE (INTELLIGENT LINE PARSER) ACTIVE")
-    # Sent messages unique signatures pool to stop duplicates permanently
+    print("[+] SMS PRODUCTION ENGINE (OPTIMIZED REAL-TIME PARSER) ACTIVE")
     sent_messages_pool = set()
     use_login_fallback = False
     
@@ -86,32 +105,12 @@ def main():
                             
                         dash_soup = BeautifulSoup(response.text, "html.parser")
                         
-                        # Pure page text ko line-by-line break karna
+                        # Pehle standard structure text reading koshish karein
                         raw_text = dash_soup.get_text("\n")
-                        lines = [line.strip() for line in raw_text.split("\n") if line.strip()]
+                        process_and_send_lines(raw_text, sent_messages_pool)
                         
-                        for line in lines:
-                            # 🔍 FILTER LOGIC: Sirf wahi line select ho jisme numeric patterns ya SMS fields hon
-                            # Yeh header, footer, menus aur un-necessary lines ko filter out kar dega
-                            if len(line) > 20 and any(char.isdigit() for char in line):
-                                # Menu links ya system alerts ko block karne ke liye keywords safety filter
-                                if any(x in line.lower() for x in ["dashboard", "sign out", "navigation", "copyright", "welcome"]):
-                                    continue
-                                    
-                                # Unique signature creation to bypass tracking redundancy
-                                line_signature = hash(line)
-                                
-                                if line_signature not in sent_messages_pool:
-                                    print(f"[+] Unique SMS Line detected! Extracting payload...")
-                                    
-                                    # Beautiful layout message template
-                                    formatted_message = f"📩 *NEW SMS RECEIVED*\n\n{line}"
-                                    send_telegram(formatted_message)
-                                    
-                                    sent_messages_pool.add(line_signature)
-                        
-                        # Clear memory pool when it gets too large
-                        if len(sent_messages_pool) > 500:
+                        # Memory usage dynamic maintenance
+                        if len(sent_messages_pool) > 1000:
                             sent_messages_pool.clear()
                             
                         print(f"[.] Sync: OK | State: {loop_counter+1}/100 | Tracking Active Pool: {len(sent_messages_pool)}")
@@ -135,7 +134,7 @@ def main():
                 
                 captcha_val = solve_captcha(soup)
                 if not captcha_val:
-                    print("[-] HTML Text Captcha missing. Please refresh cookie if automated routing stalls.")
+                    print("[-] HTML Text Captcha missing. Please update cookie if login expires.")
                     time.sleep(30)
                     continue
                     
@@ -156,17 +155,8 @@ def main():
                         
                     dash_soup = BeautifulSoup(dashboard_response.text, "html.parser")
                     raw_text = dash_soup.get_text("\n")
-                    lines = [line.strip() for line in raw_text.split("\n") if line.strip()]
+                    process_and_send_lines(raw_text, sent_messages_pool, fallback_label="(FALLBACK)")
                     
-                    for line in lines:
-                        if len(line) > 20 and any(char.isdigit() for char in line):
-                            if any(x in line.lower() for x in ["dashboard", "sign out", "navigation", "copyright"]):
-                                continue
-                            line_signature = hash(line)
-                            if line_signature not in sent_messages_pool:
-                                formatted_message = f"📩 *NEW SMS RECEIVED (FALLBACK)*\n\n{line}"
-                                send_telegram(formatted_message)
-                                sent_messages_pool.add(line_signature)
                     time.sleep(CHECK_INTERVAL)
                 
                 use_login_fallback = False
@@ -177,4 +167,4 @@ def main():
 
 if __name__ == "__main__":
     main()
-                    
+        
