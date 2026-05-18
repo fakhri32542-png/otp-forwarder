@@ -4,44 +4,55 @@ import time
 import requests
 from bs4 import BeautifulSoup
 from selenium import webdriver
-from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.common.by import By
-from webdriver_manager.chrome import ChromeDriverManager
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
 
-# ==========================================
-# CONFIG
-# ==========================================
+# ==============================================================================
+# CONFIGURATION
+# ==============================================================================
 API_URL = "http://54.38.176.48/ints/agent/SMSTestPanel"
 USERNAME = "Fakhar325"
 PASSWORD = "Fakhar325"
-BOT_TOKEN = "YOUR_NEW_BOT_TOKEN"  # Apna Token yahan verify karein
+BOT_TOKEN = "YOUR_NEW_BOT_TOKEN"  # <-- Apna sahi Telegram Bot Token yahan dalein
 CHAT_ID = "-1003824926404"
-CHECK_INTERVAL = 10
+CHECK_INTERVAL = 10  # Har check ke darmiyan seconds ka gap
+ITERATIONS_BEFORE_RECYCLE = 30  # RAM bachanay ke liye itni bar check ke baad browser restart hoga
 
+# ==============================================================================
+# TELEGRAM ALERTS ENGINE
+# ==============================================================================
 def send_telegram(message):
     try:
         telegram_url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage"
         payload = {"chat_id": CHAT_ID, "text": message}
         response = requests.post(telegram_url, data=payload, timeout=15)
-        print(f"[Telegram Status]: {response.status_code}")
+        print(f"[Telegram Logger]: Packet transmission status -> {response.status_code}")
     except Exception as e:
-        print(f"[-] Telegram Delivery Error: {e}")
+        print(f"[-] Telegram Gateway Error: {e}")
 
+# ==============================================================================
+# CAPTCHA MATHEMATICAL SOLVER
+# ==============================================================================
 def solve_captcha_from_text(text):
     try:
+        # Poore HTML text layer se 'X + Y' pattern detect karna
         match = re.search(r'(\d+)\s*\+\s*(\d+)', text)
         if match:
             num1 = int(match.group(1))
             num2 = int(match.group(2))
             result = num1 + num2
-            print(f"[+] Captcha Solved: {num1} + {num2} = {result}")
+            print(f"[+] Captcha Solved Natively: {num1} + {num2} = {result}")
             return str(result)
     except Exception as e:
-        print(f"[-] Captcha Solving Error: {e}")
+        print(f"[-] Captcha Engine Failure: {e}")
     return None
 
-def get_real_browser():
+# ==============================================================================
+# NIXPACKS OPTIMIZED BROWSER INITIALIZATION
+# ==============================================================================
+def get_optimized_browser():
     chrome_options = Options()
     chrome_options.add_argument("--headless=new") 
     chrome_options.add_argument("--no-sandbox")
@@ -49,97 +60,112 @@ def get_real_browser():
     chrome_options.add_argument("--disable-gpu")
     chrome_options.add_argument("--window-size=1920,1080")
     chrome_options.add_argument("user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36")
+    
+    # Automation footprints ko conceal karna taake panel block na kare
     chrome_options.add_argument("--disable-blink-features=AutomationControlled")
     chrome_options.add_experimental_option("excludeSwitches", ["enable-automation"])
     chrome_options.add_experimental_option('useAutomationExtension', False)
     
-    # Global environment detection mechanism for Nixpacks
-    # Kuch common nix paths check karna agar standard environment wrapper missing ho
-    nix_chrome_path = "/nix/store/"
-    print("[*] Instantiating default automation driver setup...")
-
-    # automatic fallback wrapper execution
+    print("[*] Spawning a clean system integrated Chrome instance...")
     driver = webdriver.Chrome(options=chrome_options)
     
+    # anti-bot bypass javascript variable tweak
     driver.execute_cdp_cmd("Page.addScriptToEvaluateOnNewDocument", {
         "source": "Object.defineProperty(navigator, 'webdriver', {get: () => undefined})"
     })
     return driver
 
+# ==============================================================================
+# MAIN SYSTEM EXECUTION LOOP
+# ==============================================================================
 def main():
-    print("[*] Production Real Browser Monitoring Service Triggered...")
-    last_sms_data = ""
-    driver = None
-
+    print("[+] SMS GATEWAY AUTOMATION DEPLOYED ON PRODUCTION")
+    last_sms_snapshot = ""
+    
     while True:
+        driver = None
         try:
-            if driver is None:
-                driver = get_real_browser()
+            # Step 1: Initialize browser context
+            driver = get_optimized_browser()
+            wait = WebDriverWait(driver, 20)  # Explicit wait pool config (Max 20 seconds)
 
-            print(f"[*] Browsing target panel: {API_URL}")
+            print(f"[*] Connecting to network target: {API_URL}")
             driver.get(API_URL)
-            time.sleep(4)
+            time.sleep(3)  # Initial buffer for handshake
 
+            # Step 2: Handle Identity Challenge / Login Page
             page_source = driver.page_source
-            if "Sign In" in page_source or "username" in page_source.lower():
-                print("[*] Authentication screen challenge found.")
+            if "username" in page_source.lower() or "Sign In" in page_source:
+                print("[*] Authentication screen challenge encountered.")
+                
                 soup = BeautifulSoup(page_source, "html.parser")
-                captcha_val = solve_captcha_from_text(soup.get_text())
+                captcha_solution = solve_captcha_from_text(soup.get_text())
 
-                if not captcha_val:
-                    print("[-] Critical target tracking sync broke. Retrying view stream...")
+                if not captcha_solution:
+                    print("[-] Failed to scan captcha numbers. Recycling stream pipeline...")
+                    driver.quit()
                     time.sleep(5)
                     continue
 
-                user_field = driver.find_element(By.NAME, "username")
-                pass_field = driver.find_element(By.NAME, "password")
-                capt_field = driver.find_element(By.NAME, "capt")
+                # Fields visibility ka wait karna (Slow connection handling)
+                user_input = wait.until(EC.presence_of_element_located((By.NAME, "username")))
+                pass_input = driver.find_element(By.NAME, "password")
+                capt_input = driver.find_element(By.NAME, "capt")
                 
-                user_field.clear()
-                user_field.send_keys(USERNAME)
-                pass_field.clear()
-                pass_field.send_keys(PASSWORD)
-                capt_field.clear()
-                capt_field.send_keys(captcha_val)
+                user_input.clear()
+                user_input.send_keys(USERNAME)
+                pass_input.clear()
+                pass_input.send_keys(PASSWORD)
+                capt_input.clear()
+                capt_input.send_keys(captcha_solution)
 
-                capt_field.submit()
-                print("[*] Dispatching session creation forms...")
-                time.sleep(5)
+                print("[*] Submitting credentials array...")
+                capt_input.submit()
+                time.sleep(6)  # Wait for secure redirection token generation
 
-            for _ in range(20):
-                current_source = driver.page_source
-                if "Sign In" in current_source and "username" in current_source.lower():
-                    print("[!] Local container context identity token dropped.")
+            # Step 3: Stream Monitoring Pool (RAM Guard Loop)
+            for loop_count in range(ITERATIONS_BEFORE_RECYCLE):
+                current_dom_state = driver.page_source
+                
+                # Check if session expired or kicked to home
+                if "username" in current_dom_state.lower() and "Sign In" in current_dom_state:
+                    print("[!] Session invalidated by target host. Re-routing execution path...")
                     break
 
-                dash_soup = BeautifulSoup(current_source, "html.parser")
-                current_text_snapshot = dash_soup.get_text("\n").strip()
+                # Parse data layers
+                dash_soup = BeautifulSoup(current_dom_state, "html.parser")
+                clean_payload_text = dash_soup.get_text("\n").strip()
 
-                if len(current_text_snapshot) > 50:
-                    if current_text_snapshot != last_sms_data:
-                        print("[+] Payload mutation captured. Transmitting text data...")
-                        tele_message = f"📩 NEW SMS RECEIVED (STABLE BROWSER)\n\n{current_text_snapshot[:3500]}"
-                        send_telegram(tele_message)
-                        last_sms_data = current_text_snapshot
+                if len(clean_payload_text) > 50:
+                    if clean_payload_text != last_sms_snapshot:
+                        print("[+] Mutation captured! Parsing payload packet...")
+                        
+                        formatted_alert = f"📩 NEW SMS RECEIVED (STABLE PRODUCTION ENGINE)\n\n{clean_payload_text[:3500]}"
+                        send_telegram(formatted_alert)
+                        
+                        last_sms_snapshot = clean_payload_text
                     else:
-                        print("[.] State unchanged. Synchronized loop waiting for stack updates.")
+                        print(f"[.] Sync status: OK | Iteration: {loop_count+1}/{ITERATIONS_BEFORE_RECYCLE} | Data stream stable.")
                 else:
-                    print("[-] Context execution layout state tracking is unreadable.")
+                    print("[-] Warning: Dom data buffer size is under minimum thresholds.")
 
                 time.sleep(CHECK_INTERVAL)
                 driver.refresh()
-                time.sleep(3)
+                time.sleep(3)  # Wait for refresh lifecycle
 
-        except Exception as err:
-            print(f"[!!] Production runtime loop caught error: {err}")
+            # Step 4: Clear RAM memory leakage footprints
+            print("[*] Releasing active container RAM blocks. Recycling browser subprocess...")
+            driver.quit()
+
+        except Exception as global_runtime_error:
+            print(f"[!!] Critical Exception Intercepted: {global_runtime_error}")
             if driver:
                 try:
                     driver.quit()
                 except:
                     pass
-                driver = None
+            print("[*] Re-spinning thread in 10 seconds...")
             time.sleep(10)
 
 if __name__ == "__main__":
     main()
-                
