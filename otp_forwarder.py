@@ -59,8 +59,8 @@ def build_bulletproof_session():
     return session
 
 def main():
-    print("[+] SMS PRODUCTION ENGINE (REAL-TIME FILTER MODE) ACTIVE")
-    # Store sent messages to prevent duplicates
+    print("[+] SMS PRODUCTION ENGINE (INTELLIGENT LINE PARSER) ACTIVE")
+    # Sent messages unique signatures pool to stop duplicates permanently
     sent_messages_pool = set()
     use_login_fallback = False
     
@@ -74,51 +74,56 @@ def main():
                 dashboard_response = session.get(API_URL, headers=HEADERS, timeout=20)
                 
                 if "Sign In" not in dashboard_response.text:
-                    print("[+] Cookie authorized successfully. Streaming live data...")
+                    print("[+] Cookie authorized successfully. Scanning data streams...")
                     
                     for loop_counter in range(100):
                         response = session.get(API_URL, headers=HEADERS, timeout=20)
                         
                         if "Sign In" in response.text:
-                            print("[!] Cookie context dropped on host. Moving to login matrix...")
+                            print("[!] Session expired natively. Switching to backup login...")
                             use_login_fallback = True
                             break
                             
                         dash_soup = BeautifulSoup(response.text, "html.parser")
                         
-                        # Target Table Rows (Tr) ya text segments dhoondna
-                        table_rows = dash_soup.find_all("tr")
+                        # Pure page text ko line-by-line break karna
+                        raw_text = dash_soup.get_text("\n")
+                        lines = [line.strip() for line in raw_text.split("\n") if line.strip()]
                         
-                        if table_rows:
-                            # Table structure se data nikalna
-                            for row in table_rows:
-                                row_text = row.get_text(" ").strip()
-                                # Filter logs, headers and empty spaces
-                                if len(row_text) > 15 and "username" not in row_text.lower() and row_text not in sent_messages_pool:
-                                    print(f"[+] New SMS detected in row parsing pool!")
-                                    formatted_message = f"📩 NEW SMS RECEIVED\n\n{row_text[:3500]}"
+                        for line in lines:
+                            # 🔍 FILTER LOGIC: Sirf wahi line select ho jisme numeric patterns ya SMS fields hon
+                            # Yeh header, footer, menus aur un-necessary lines ko filter out kar dega
+                            if len(line) > 20 and any(char.isdigit() for char in line):
+                                # Menu links ya system alerts ko block karne ke liye keywords safety filter
+                                if any(x in line.lower() for x in ["dashboard", "sign out", "navigation", "copyright", "welcome"]):
+                                    continue
+                                    
+                                # Unique signature creation to bypass tracking redundancy
+                                line_signature = hash(line)
+                                
+                                if line_signature not in sent_messages_pool:
+                                    print(f"[+] Unique SMS Line detected! Extracting payload...")
+                                    
+                                    # Beautiful layout message template
+                                    formatted_message = f"📩 *NEW SMS RECEIVED*\n\n{line}"
                                     send_telegram(formatted_message)
-                                    sent_messages_pool.add(row_text)
-                        else:
-                            # Fallback text blocking system agar website list elements standard na hon
-                            current_text_layer = dash_soup.get_text("\n").strip()
-                            if len(current_text_layer) > 30 and current_text_layer not in sent_messages_pool:
-                                print("[+] New update found via fallback text layer!")
-                                formatted_message = f"📩 NEW SMS RECEIVED (SNAPSHOT)\n\n{current_text_layer[:3500]}"
-                                send_telegram(formatted_message)
-                                sent_messages_pool.add(current_text_layer)
+                                    
+                                    sent_messages_pool.add(line_signature)
                         
-                        # Pool size limit to maintain low RAM footprints
-                        if len(sent_messages_pool) > 200:
+                        # Clear memory pool when it gets too large
+                        if len(sent_messages_pool) > 500:
                             sent_messages_pool.clear()
                             
-                        print(f"[.] Sync Status: OK | Count: {loop_counter+1}/100 | Pool Size: {len(sent_messages_pool)}")
+                        print(f"[.] Sync: OK | State: {loop_counter+1}/100 | Tracking Active Pool: {len(sent_messages_pool)}")
                         time.sleep(CHECK_INTERVAL)
                     continue
                 else:
                     print("[-] Injected Cookie stream is stale/expired. Activating login routing...")
                     use_login_fallback = True
 
+            # ==============================================================================
+            # PLAN B: FALLBACK LOGIN ENGINE
+            # ==============================================================================
             if use_login_fallback:
                 print("[*] Parsing panel HTML fields structure...")
                 clean_headers = HEADERS.copy()
@@ -130,7 +135,7 @@ def main():
                 
                 captcha_val = solve_captcha(soup)
                 if not captcha_val:
-                    print("[-] HTML Text Captcha missing. Sleeping thread...")
+                    print("[-] HTML Text Captcha missing. Please refresh cookie if automated routing stalls.")
                     time.sleep(30)
                     continue
                     
@@ -142,7 +147,7 @@ def main():
                     time.sleep(15)
                     continue
                     
-                print("[+] Fallback Login Verified. Tracking active dashboard data stream...")
+                print("[+] Fallback Login Verified. Tracking continuous active stream...")
                 
                 for loop_counter in range(40):
                     dashboard_response = session.get(API_URL, headers=clean_headers, timeout=20)
@@ -150,15 +155,18 @@ def main():
                         break
                         
                     dash_soup = BeautifulSoup(dashboard_response.text, "html.parser")
-                    table_rows = dash_soup.find_all("tr")
+                    raw_text = dash_soup.get_text("\n")
+                    lines = [line.strip() for line in raw_text.split("\n") if line.strip()]
                     
-                    if table_rows:
-                        for row in table_rows:
-                            row_text = row.get_text(" ").strip()
-                            if len(row_text) > 15 and "username" not in row_text.lower() and row_text not in sent_messages_pool:
-                                formatted_message = f"📩 NEW SMS RECEIVED (FALLBACK)\n\n{row_text[:3500]}"
+                    for line in lines:
+                        if len(line) > 20 and any(char.isdigit() for char in line):
+                            if any(x in line.lower() for x in ["dashboard", "sign out", "navigation", "copyright"]):
+                                continue
+                            line_signature = hash(line)
+                            if line_signature not in sent_messages_pool:
+                                formatted_message = f"📩 *NEW SMS RECEIVED (FALLBACK)*\n\n{line}"
                                 send_telegram(formatted_message)
-                                sent_messages_pool.add(row_text)
+                                sent_messages_pool.add(line_signature)
                     time.sleep(CHECK_INTERVAL)
                 
                 use_login_fallback = False
